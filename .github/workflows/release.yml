@@ -1,101 +1,66 @@
 name: Release
 
+# Recovery path: rebuilds, re-verifies and (re)publishes one version. Normal releases happen
+# in Auto release when a new version lands on main; use this only when that run failed.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag or version to publish, for example v1.2.0 or 1.2.0
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
+  resolve:
+    name: Resolve version
     runs-on: ubuntu-latest
-    env:
-      MODRINTH_TOKEN_SET: ${{ secrets.MODRINTH_TOKEN != '' }}
+    timeout-minutes: 5
+    outputs:
+      ref: ${{ steps.version.outputs.ref }}
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: |
-            17
-            21
-            25
-
-      - uses: gradle/actions/setup-gradle@v6
-
-      - name: Build
-        run: ./gradlew build --stacktrace
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: .github/player-tests/package-lock.json
-
-      - name: Install pinned player test client
-        run: npm ci --prefix .github/player-tests --ignore-scripts
-
-      - name: Verify production gameplay and restarts
-        run: |
-          source .github/scripts/targets.sh
-          VERSION="$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)"
-          for target in "${TARGETS[@]}"; do
-            read -r module _ _ <<< "$target"
-            python3 .github/scripts/smoke-test.py "$module" "$(jar_path "$module" "$VERSION")" --player-script .github/player-tests/gameplay.cjs --player-phases first,restart
-          done
-
-      - name: Extract changelog section
-        id: changelog
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(awk -v ver="$VERSION" '
-            /^## \[/ {
-              if (found) exit
-              if ($0 ~ ("\\[" ver "\\]")) { found=1; next }
-              next
-            }
-            found { print }
-          ' CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            echo "::error::No CHANGELOG.md section found for version $VERSION (expected a '## [$VERSION] - ...' heading)"
-            exit 1
-          fi
-          {
-            echo "notes<<CHANGELOG_EOF"
-            echo "$NOTES"
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Collect all release jars
-        run: VERSION="${GITHUB_REF_NAME#v}" bash .github/scripts/collect-jars.sh
-
-      - name: Create release
-        uses: softprops/action-gh-release@v3
-        with:
-          name: ${{ github.ref_name }}
-          body: ${{ steps.changelog.outputs.notes }}
-          files: release/*.jar
-
-      - name: Publish every Modrinth target and sync description
+      - name: Check the requested version
+        id: version
         env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          DESCRIPTION_FILE: modrinth.md
-          CHANGELOG: ${{ steps.changelog.outputs.notes }}
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          test "$VERSION" = "$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)"
-          printf '%s\n' "$CHANGELOG" > RELEASE_NOTES.md
-          VERSION="$VERSION" bash .github/scripts/publish-modrinth.sh
+          REQUESTED: ${{ inputs.tag || github.ref_name }}
+        run: bash .github/scripts/resolve-release.sh
 
-      - name: Retain production verification logs
-        if: always()
-        uses: actions/upload-artifact@v4
+  # Same build and per-target gameplay checks as every push.
+  build:
+    needs: resolve
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.resolve.outputs.ref }}
+
+  publish:
+    name: Publish to Modrinth and GitHub
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
         with:
-          name: production-verification
-          path: build/smoke/**/*.log
-          if-no-files-found: ignore
-          retention-days: 14
+          ref: ${{ needs.resolve.outputs.ref }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: jars
+          path: release
+
+      - name: Publish the verified version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: bash .github/scripts/publish-release.sh recover

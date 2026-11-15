@@ -1,18 +1,36 @@
 name: Build
 
+# Builds every release jar, then boots each one in a real server and plays it with a headless
+# client. Auto release publishes a new version only after every job here succeeded.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit, tag or branch to build (default is the triggering ref)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    name: Build all targets
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      targets: ${{ steps.jars.outputs.targets }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
-      - uses: actions/setup-java@v5
+      # Gradle runs on the last JDK listed; toolchains use the others for older game versions.
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: |
@@ -20,43 +38,73 @@ jobs:
             21
             25
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v5
 
-      - name: Build
+      - name: Build every target and run unit tests
         run: ./gradlew build --stacktrace
 
-      - uses: actions/setup-node@v4
+      - name: Collect release jars
+        id: jars
+        run: |
+          source .github/scripts/common.sh
+          echo "targets=$(target_modules_json)" >> "$GITHUB_OUTPUT"
+          VERSION="$(mod_version)" bash .github/scripts/collect-jars.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jars
+          path: release/*.jar
+          if-no-files-found: error
+
+  verify:
+    name: Verify ${{ matrix.target }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.build.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            21
+            25
+
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: .github/player-tests/package-lock.json
 
-      - name: Install pinned player test client
+      - name: Install the pinned player test client
         run: npm ci --prefix .github/player-tests --ignore-scripts
 
-      - name: Verify production gameplay and restarts
-        run: |
-          source .github/scripts/targets.sh
-          VERSION="$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)"
-          for target in "${TARGETS[@]}"; do
-            read -r module _ _ <<< "$target"
-            python3 .github/scripts/smoke-test.py "$module" "$(jar_path "$module" "$VERSION")" --player-script .github/player-tests/gameplay.cjs --player-phases first,restart
-          done
-
-      - name: Collect all release jars
-        run: VERSION="$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)" bash .github/scripts/collect-jars.sh
-
-      - uses: actions/upload-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
-          name: fiw-warp-jars
-          path: release/*.jar
-          if-no-files-found: error
+          name: jars
+          path: release
 
-      - name: Retain production verification logs
+      - name: Play the production jar and restart the server
+        env:
+          TARGET: ${{ matrix.target }}
+        run: bash .github/scripts/verify-target.sh "$TARGET" release
+
+      - name: Keep server and client logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: production-verification
-          path: build/smoke/**/*.log
+          name: verification-${{ matrix.target }}
+          path: |
+            build/smoke/**/*.log
+            build/smoke/**/snapshots/**
+            build/smoke/**/graves-player-state.json
           if-no-files-found: ignore
           retention-days: 14
