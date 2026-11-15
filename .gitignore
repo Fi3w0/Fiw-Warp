@@ -34,3 +34,9 @@ CLAUDE.md
 
 # Claude Code local settings (per-user, not shared)
 .claude/settings.local.json
+
+node_modules/
+
+__pycache__/
+
+*.py[cod]
