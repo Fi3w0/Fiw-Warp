@@ -15,17 +15,48 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
+          java-version: |
+            17
+            21
+            25
 
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Build
         run: ./gradlew build --stacktrace
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: .github/player-tests/package-lock.json
+
+      - name: Install pinned player test client
+        run: npm ci --prefix .github/player-tests --ignore-scripts
+
+      - name: Verify production gameplay and restarts
+        run: |
+          source .github/scripts/targets.sh
+          VERSION="$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)"
+          for target in "${TARGETS[@]}"; do
+            read -r module _ _ <<< "$target"
+            python3 .github/scripts/smoke-test.py "$module" "$(jar_path "$module" "$VERSION")" --player-script .github/player-tests/gameplay.cjs --player-phases first,restart
+          done
+
+      - name: Collect all release jars
+        run: VERSION="$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)" bash .github/scripts/collect-jars.sh
+
       - uses: actions/upload-artifact@v7
         with:
           name: fiw-warp-jars
-          path: |
-            fabric/build/libs/*.jar
-            neoforge/build/libs/*.jar
+          path: release/*.jar
           if-no-files-found: error
+
+      - name: Retain production verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-verification
+          path: build/smoke/**/*.log
+          if-no-files-found: ignore
+          retention-days: 14

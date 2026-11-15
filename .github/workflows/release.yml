@@ -20,12 +20,33 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
+          java-version: |
+            17
+            21
+            25
 
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Build
         run: ./gradlew build --stacktrace
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: .github/player-tests/package-lock.json
+
+      - name: Install pinned player test client
+        run: npm ci --prefix .github/player-tests --ignore-scripts
+
+      - name: Verify production gameplay and restarts
+        run: |
+          source .github/scripts/targets.sh
+          VERSION="$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)"
+          for target in "${TARGETS[@]}"; do
+            read -r module _ _ <<< "$target"
+            python3 .github/scripts/smoke-test.py "$module" "$(jar_path "$module" "$VERSION")" --player-script .github/player-tests/gameplay.cjs --player-phases first,restart
+          done
 
       - name: Extract changelog section
         id: changelog
@@ -49,48 +70,32 @@ jobs:
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Collect all release jars
+        run: VERSION="${GITHUB_REF_NAME#v}" bash .github/scripts/collect-jars.sh
+
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
           name: ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.notes }}
-          files: |
-            fabric/build/libs/*.jar
-            neoforge/build/libs/*.jar
+          files: release/*.jar
 
-      - name: Publish to Modrinth (Fabric)
-        if: ${{ env.MODRINTH_TOKEN_SET == 'true' }}
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          modrinth-id: fiw-warp
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          files: fabric/build/libs/!(*-@(dev|sources|javadoc)).jar
-          name: Fiw Warp ${{ github.ref_name }} (Fabric)
-          version: ${{ github.ref_name }}
-          version-type: release
-          loaders: |
-            fabric
-          game-versions: |
-            1.21.11
-          changelog: ${{ steps.changelog.outputs.notes }}
-          dependencies: |
-            fabric-api(required){modrinth:fabric-api}
-            fabric-language-kotlin(required){modrinth:fabric-language-kotlin}
+      - name: Publish every Modrinth target and sync description
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          DESCRIPTION_FILE: modrinth.md
+          CHANGELOG: ${{ steps.changelog.outputs.notes }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          test "$VERSION" = "$(awk -F= '$1 == "mod_version" {print $2}' gradle.properties)"
+          printf '%s\n' "$CHANGELOG" > RELEASE_NOTES.md
+          VERSION="$VERSION" bash .github/scripts/publish-modrinth.sh
 
-      - name: Publish to Modrinth (NeoForge)
-        if: ${{ env.MODRINTH_TOKEN_SET == 'true' }}
-        uses: Kir-Antipov/mc-publish@v3.3
+      - name: Retain production verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          modrinth-id: fiw-warp
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          files: neoforge/build/libs/!(*-@(dev|sources|javadoc)).jar
-          name: Fiw Warp ${{ github.ref_name }} (NeoForge)
-          version: ${{ github.ref_name }}
-          version-type: release
-          loaders: |
-            neoforge
-          game-versions: |
-            1.21.11
-          changelog: ${{ steps.changelog.outputs.notes }}
-          dependencies: |
-            kotlin-for-forge(required){modrinth:kotlin-for-forge}
+          name: production-verification
+          path: build/smoke/**/*.log
+          if-no-files-found: ignore
+          retention-days: 14
