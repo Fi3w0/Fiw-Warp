@@ -1,13 +1,17 @@
 # Fiw Warp
 
-**Lightweight, server-side teleportation for Fabric and NeoForge.**
+**Lightweight, server-side teleportation for Fabric, NeoForge and Forge.**
 
 Fiw Warp gives your players homes and your server warps, with a fair, configurable warmup so
 teleporting isn't an instant escape button — and an optional cooldown to stop spam. It's
 server-side only, registers no networking, and ships no client code, so it stays out of the way
 and keeps your server light.
 
-> Works on **Fabric** and **NeoForge** for **Minecraft 1.21.11** from the same mod.
+| Minecraft | Loaders | Java |
+|---|---|---|
+| 26.1.2 | Fabric | 25 |
+| 1.21.11, 1.21.8, 1.21.1 | Fabric, NeoForge | 21 |
+| 1.20.1 | Fabric, Forge | 17 |
 
 ## ✨ Features
 
@@ -47,7 +51,7 @@ to `false`. Disabled systems hide their commands entirely.
 ## 📦 Requirements
 
 - **Fabric:** Fabric API + Fabric Language Kotlin
-- **NeoForge:** Kotlin for Forge
+- **NeoForge / Forge:** Kotlin for Forge for the matching Minecraft version
 
 ## 🧩 Compatibility
 

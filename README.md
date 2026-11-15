@@ -1,7 +1,12 @@
 # Fiw Warp
 
-A lightweight, **server-side** teleport mod for Minecraft **1.21.11**, written in Kotlin and
-built for **both Fabric and NeoForge** from a single codebase.
+A lightweight, **server-side** teleport mod, written in Kotlin, with matching releases for:
+
+| Minecraft | Loaders | Java |
+|---|---|---|
+| 26.1.2 | Fabric | 25 |
+| 1.21.11, 1.21.8, 1.21.1 | Fabric, NeoForge | 21 |
+| 1.20.1 | Fabric, Forge | 17 |
 
 Set homes, define server warps, and teleport around — with a configurable warmup ("stand
 still") and an optional cooldown so teleporting isn't instant or spammy. The mod registers no
@@ -25,7 +30,7 @@ without installing anything.
 - 💬 **Every message customizable** — every piece of text the mod sends can be reworded in the
   config, no code or resource pack required.
 - 🪶 **Lightweight** — pending teleports are only ticked when they exist; data is plain JSON.
-- 🧩 **Multiloader** — Fabric + NeoForge, no Architectury API dependency.
+- 🧩 **Multiloader** — Fabric + NeoForge + Forge, no Architectury API dependency.
 
 ## Commands
 
@@ -146,7 +151,7 @@ there is no Architectury runtime dependency.
 
 ## Building
 
-Requires a JDK 21+.
+Requires JDK 25 to run Gradle. Older targets retain their Java 17/21 runtime requirements.
 
 ```bash
 ./gradlew build
@@ -154,16 +159,33 @@ Requires a JDK 21+.
 
 Artifacts land in:
 
-- `fabric/build/libs/fiw-warp-fabric-<version>.jar`
-- `neoforge/build/libs/fiw-warp-neoforge-<version>.jar`
+- `fabric/build/libs/fiw-warp-fabric-1.21.11-<version>.jar`
+- `neoforge/build/libs/fiw-warp-neoforge-1.21.11-<version>.jar`
 
 Drop the matching jar into your server's `mods/` folder. On Fabric you also need
 [Fabric API](https://modrinth.com/mod/fabric-api) and
 [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin); on NeoForge you need
 [Kotlin for Forge](https://modrinth.com/mod/kotlin-for-forge).
 
-All loader/library versions are pinned in `gradle.properties`.
+Other targets use `<loader>-<minecraft>/build/libs/fiw-warp-<loader>-<minecraft>-<version>.jar`.
+The existing `common`, `fabric` and `neoforge` directories remain the 1.21.11 modules;
+older/newer implementations live in matching version-suffixed directories.
+
+Game and loader pins live in each module's `gradle.properties`; the mod release version
+lives only in the root file. Fabric requires Fabric API and Fabric Language Kotlin.
+Forge/NeoForge require the Kotlin for Forge distribution matching that Minecraft version.
+
+CI builds and boots every production jar, exercises console commands, and restarts the
+world. A successful push to `main` with a new root `mod_version` publishes all nine jars
+and syncs `modrinth.md`. The tag workflow remains a recovery path.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+### Automated gameplay checks
+
+With Node 22+ installed, run `./gradlew playerTest -PsmokeTarget=<module>` to test the built
+production jar in a disposable local server, then repeat after a restart. CI runs this check
+for all nine targets and retains logs on failure. Output is under `build/smoke/<module>`.
