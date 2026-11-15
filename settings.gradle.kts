@@ -12,3 +12,6 @@ rootProject.name = "fiw-warp"
 include("common")
 include("fabric")
 include("neoforge")
+
+include("common-26.1.2")
+include("fabric-26.1.2")
