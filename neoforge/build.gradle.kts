@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,13 +8,23 @@ plugins {
 
 val modId = providers.gradleProperty("mod_id").get()
 
-base { archivesName.set("${providers.gradleProperty("archives_name").get()}-neoforge") }
 
-evaluationDependsOn(":common")
-val commonMain = project(":common").extensions.getByType<SourceSetContainer>()["main"]
+val targetProperties = Properties().apply {
+	val propertiesFile = file("gradle.properties")
+	if (propertiesFile.exists()) propertiesFile.inputStream().use { load(it) }
+}
+fun target(name: String): String = targetProperties.getProperty(name) ?: providers.gradleProperty(name).get()
+val minecraftVersion = target("minecraft_version")
+val javaVersion = target("java_version")
+val commonPath = if (minecraftVersion == "1.21.11") ":common" else ":common-$minecraftVersion"
+
+base { archivesName.set("${providers.gradleProperty("archives_name").get()}-neoforge-$minecraftVersion") }
+
+evaluationDependsOn(commonPath)
+val commonMain = project(commonPath).extensions.getByType<SourceSetContainer>()["main"]
 
 neoForge {
-	version = providers.gradleProperty("neoforge_version").get()
+	version = target("neoforge_version")
 
 	runs {
 		register("server") {
@@ -30,7 +41,7 @@ neoForge {
 
 dependencies {
 	// Kotlin runtime + @Mod language adapter for NeoForge.
-	implementation("thedarkcolour:kotlinforforge-neoforge:${providers.gradleProperty("kotlin_for_forge_version").get()}")
+	implementation("thedarkcolour:kotlinforforge-neoforge:${target("kotlin_for_forge_version")}")
 
 	// Shared code from :common (same Mojang mappings as NeoForge runtime).
 	compileOnly(commonMain.output)
@@ -47,12 +58,12 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.toVersion(javaVersion)
+	targetCompatibility = JavaVersion.toVersion(javaVersion)
 }
 
-tasks.withType<JavaCompile>().configureEach { options.release.set(21) }
+tasks.withType<JavaCompile>().configureEach { options.release.set(javaVersion.toInt()) }
 
 kotlin {
-	compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(javaVersion)) }
 }

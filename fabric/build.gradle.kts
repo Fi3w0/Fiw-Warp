@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,10 +8,20 @@ plugins {
 
 val modId = providers.gradleProperty("mod_id").get()
 
-base { archivesName.set("${providers.gradleProperty("archives_name").get()}-fabric") }
 
-evaluationDependsOn(":common")
-val commonMain = project(":common").extensions.getByType<SourceSetContainer>()["main"]
+val targetProperties = Properties().apply {
+	val propertiesFile = file("gradle.properties")
+	if (propertiesFile.exists()) propertiesFile.inputStream().use { load(it) }
+}
+fun target(name: String): String = targetProperties.getProperty(name) ?: providers.gradleProperty(name).get()
+val minecraftVersion = target("minecraft_version")
+val javaVersion = target("java_version")
+val commonPath = if (minecraftVersion == "1.21.11") ":common" else ":common-$minecraftVersion"
+
+base { archivesName.set("${providers.gradleProperty("archives_name").get()}-fabric-$minecraftVersion") }
+
+evaluationDependsOn(commonPath)
+val commonMain = project(commonPath).extensions.getByType<SourceSetContainer>()["main"]
 
 loom {
 	mods {
@@ -21,10 +32,10 @@ loom {
 }
 
 dependencies {
-	minecraft("com.mojang:minecraft:${providers.gradleProperty("minecraft_version").get()}")
+	minecraft("com.mojang:minecraft:${minecraftVersion}")
 	mappings(loom.officialMojangMappings())
 	modImplementation("net.fabricmc:fabric-loader:${providers.gradleProperty("fabric_loader_version").get()}")
-	modImplementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
+	modImplementation("net.fabricmc.fabric-api:fabric-api:${target("fabric_api_version")}")
 	modImplementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
 
 	// Shared code from :common (compiled against Mojang mappings, remapped on build).
@@ -36,19 +47,19 @@ tasks.named<Jar>("jar") {
 }
 
 tasks.named<ProcessResources>("processResources") {
-	val props = mapOf("version" to project.version)
+	val props = mapOf("version" to project.version, "minecraft_version" to minecraftVersion, "java_version" to javaVersion)
 	inputs.properties(props)
 	filesMatching("fabric.mod.json") { expand(props) }
 }
 
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.toVersion(javaVersion)
+	targetCompatibility = JavaVersion.toVersion(javaVersion)
 }
 
-tasks.withType<JavaCompile>().configureEach { options.release.set(21) }
+tasks.withType<JavaCompile>().configureEach { options.release.set(javaVersion.toInt()) }
 
 kotlin {
-	compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(javaVersion)) }
 }
