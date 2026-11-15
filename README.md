@@ -177,7 +177,7 @@ Forge/NeoForge require the Kotlin for Forge distribution matching that Minecraft
 
 CI builds and boots every production jar, exercises console commands, and restarts the
 world. A successful push to `main` with a new root `mod_version` publishes all nine jars
-and syncs `modrinth.md`. The tag workflow remains a recovery path.
+and syncs `MODRINTH.md`. The tag workflow remains a recovery path.
 
 ## License
 
