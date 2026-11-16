@@ -141,12 +141,16 @@ respond to `/fiwwarp reload` without a restart.
 ## Project structure
 
 ```
-common/     Shared logic — config, storage, commands, teleport rules (loader-agnostic)
-fabric/     Fabric entry point + fabric.mod.json
-neoforge/   NeoForge entry point + neoforge.mods.toml
+common/              Shared logic for Minecraft 1.21.11: config, storage, commands, teleport rules
+fabric/              Fabric 1.21.11 entry point + fabric.mod.json
+neoforge/            NeoForge 1.21.11 entry point + neoforge.mods.toml
+common-<minecraft>/  The same shared logic for 26.3, 26.1.2, 1.21.8, 1.21.1 and 1.20.1
+fabric-<minecraft>/  Fabric entry point for each of those versions
+neoforge-<minecraft>/ NeoForge entry point for 26.3, 26.1.2, 1.21.8 and 1.21.1
+forge-1.20.1/        Forge entry point + mods.toml
 ```
 
-The `common` module is compiled against Mojang mappings and bundled into each loader jar, so
+Each `common` module is compiled against Mojang mappings and bundled into its loader jars, so
 there is no Architectury runtime dependency.
 
 ## Building
@@ -164,8 +168,9 @@ Artifacts land in:
 
 Drop the matching jar into your server's `mods/` folder. On Fabric you also need
 [Fabric API](https://modrinth.com/mod/fabric-api) and
-[Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin); on NeoForge you need
-[Kotlin for Forge](https://modrinth.com/mod/kotlin-for-forge).
+[Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin); on NeoForge and Forge
+you need [Kotlin for Forge](https://modrinth.com/mod/kotlin-for-forge) (6.4+ on 26.3, 6.2+ on
+26.1.2, 6.x on 1.21.11, 5.10 or a newer 5.x on 1.21.8 and 1.21.1, 4.12 or a newer 4.x on 1.20.1).
 
 Other targets use `<loader>-<minecraft>/build/libs/fiw-warp-<loader>-<minecraft>-<version>.jar`.
 The existing `common`, `fabric` and `neoforge` directories remain the 1.21.11 modules;
@@ -182,10 +187,3 @@ and syncs `MODRINTH.md`. The tag workflow remains a recovery path.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-
-### Automated gameplay checks
-
-With Node 22+ installed, run `./gradlew playerTest -PsmokeTarget=<module>` to test the built
-production jar in a disposable local server, then repeat after a restart. CI runs this check
-for every target and retains logs on failure. Minecraft 26.3 gets the startup and console checks only until the test client supports it. Output is under `build/smoke/<module>`.

@@ -1,7 +1,8 @@
 # Changelog
 
 All notable changes to Fiw Warp are documented here. This file is tracked in version control —
-the release pipeline extracts the matching version section as GitHub release notes on tag push.
+the release pipeline uses the matching version section as the GitHub and Modrinth release notes
+when a new version is published.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -11,7 +12,6 @@ project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 ### Added
 - Fabric/NeoForge 26.3, 26.1.2, 1.21.8 and 1.21.1, and Fabric/Forge 1.20.1 alongside 1.21.11.
 - Automatic GitHub/Modrinth releases on a successful new-version push to `main`.
-- Production-jar boot, home/warp gameplay, console-command and restart checks for every release target.
 
 ### Fixed
 - Resource-pack metadata now declares the actual game format for each target.

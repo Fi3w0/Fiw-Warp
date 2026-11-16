@@ -51,7 +51,7 @@ to `false`. Disabled systems hide their commands entirely.
 ## 📦 Requirements
 
 - **Fabric:** Fabric API + Fabric Language Kotlin
-- **NeoForge / Forge:** Kotlin for Forge for the matching Minecraft version
+- **NeoForge / Forge:** Kotlin for Forge for the matching Minecraft version (6.4+ on 26.3, 6.2+ on 26.1.2, 6.x on 1.21.11, 5.10 or a newer 5.x on 1.21.8 and 1.21.1, 4.12 or a newer 4.x on 1.20.1)
 
 ## 🧩 Compatibility
 
