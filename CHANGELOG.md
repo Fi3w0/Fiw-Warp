@@ -9,7 +9,7 @@ project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 ## [1.2.0] - Matching Minecraft versions and automatic releases
 
 ### Added
-- Fabric/NeoForge 26.1.2, 1.21.8 and 1.21.1, and Fabric/Forge 1.20.1 alongside 1.21.11.
+- Fabric/NeoForge 26.3, 26.1.2, 1.21.8 and 1.21.1, and Fabric/Forge 1.20.1 alongside 1.21.11.
 - Automatic GitHub/Modrinth releases on a successful new-version push to `main`.
 - Production-jar boot, home/warp gameplay, console-command and restart checks for every release target.
 
@@ -17,8 +17,8 @@ project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - Resource-pack metadata now declares the actual game format for each target.
 
 ### Changed
-- All ten jars include their Minecraft version in the filename and share the root mod version.
-- Build with Java 25; Minecraft 1.20.1 retains Java 17, 1.21.x Java 21, and 26.1.2 uses Java 25.
+- All twelve jars include their Minecraft version in the filename and share the root mod version.
+- Build with Java 25; Minecraft 1.20.1 retains Java 17, 1.21.x Java 21, and 26.x uses Java 25.
 - Existing config, homes and warps remain compatible across the version ports.
 
 ## [1.1.0] - 2026-07-08

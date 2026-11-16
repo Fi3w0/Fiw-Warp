@@ -4,7 +4,7 @@ A lightweight, **server-side** teleport mod, written in Kotlin, with matching re
 
 | Minecraft | Loaders | Java |
 |---|---|---|
-| 26.1.2 | Fabric, NeoForge | 25 |
+| 26.3, 26.1.2 | Fabric, NeoForge | 25 |
 | 1.21.11, 1.21.8, 1.21.1 | Fabric, NeoForge | 21 |
 | 1.20.1 | Fabric, Forge | 17 |
 
@@ -176,7 +176,7 @@ lives only in the root file. Fabric requires Fabric API and Fabric Language Kotl
 Forge/NeoForge require the Kotlin for Forge distribution matching that Minecraft version.
 
 CI builds and boots every production jar, exercises console commands, and restarts the
-world. A successful push to `main` with a new root `mod_version` publishes all ten jars
+world. A successful push to `main` with a new root `mod_version` publishes all twelve jars
 and syncs `MODRINTH.md`. The tag workflow remains a recovery path.
 
 ## License
@@ -188,4 +188,4 @@ MIT — see [LICENSE](LICENSE).
 
 With Node 22+ installed, run `./gradlew playerTest -PsmokeTarget=<module>` to test the built
 production jar in a disposable local server, then repeat after a restart. CI runs this check
-for all ten targets and retains logs on failure. Output is under `build/smoke/<module>`.
+for every target and retains logs on failure. Minecraft 26.3 gets the startup and console checks only until the test client supports it. Output is under `build/smoke/<module>`.
